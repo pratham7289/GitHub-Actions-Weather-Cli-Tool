@@ -50,14 +50,16 @@ jobs:
           DESTINATION_FOLDER: /home/Result  # Path on the remote server where the file will be deployed
         run: |
           echo "Deploying binary to remote server..."
-         # Print the SERVER_IP to check if it's being passed correctly
-          echo "Server IP: $SERVER_IP"          
+          
+          # Print the SERVER_IP to check if it's being passed correctly
+          echo "Server IP: $SERVER_IP"
+
           # Create the SSH directory and add the private key
           mkdir -p ~/.ssh
           echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa  # Set permissions for the private key file
         
-         # Debug: Check the known_hosts file content
+          # Debug: Check the known_hosts file content
           echo "Checking known_hosts content:"
           cat ~/.ssh/known_hosts
 
