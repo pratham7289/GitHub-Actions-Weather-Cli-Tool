@@ -19,7 +19,7 @@ jobs:
           # Ensure that Python 3.9 is being used
           python3.9 --version  # Check Python version
           pip3.9 install --upgrade pip  # Ensure pip is upgraded
-          pip3.9 install -r requirements.txt  # Install dependencies
+          pip3.9 install requests  # Install dependencies directly
 
       - name: Build the project
         run: |
