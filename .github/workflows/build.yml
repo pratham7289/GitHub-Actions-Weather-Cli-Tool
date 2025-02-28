@@ -7,40 +7,35 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted  # Use a RHEL-based VM for the build
+    runs-on: self-hosted  # Use the self-hosted runner for the build
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-
-      - name: Install dependencies
+      - name: Install Python 3.9
         run: |
-          sudo dnf install -y python3-pip  # Use dnf to install pip on RHEL
-          python3 -m pip install --upgrade pip
-          pip install requests
+          sudo dnf install -y python39 python39-pip  # Manually install Python 3.9 and pip on RHEL
+          python3.9 -m pip install --upgrade pip  # Upgrade pip
+          python3.9 -m pip install requests  # Install dependencies
 
       - name: Build the project
         run: |
           make build
 
       - name: Upload binary as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
           name: weather-tool
           path: weather.py
 
   deploy:
-    runs-on: self-hosted
+    runs-on: self-hosted  # Ensure deployment happens on self-hosted runner
     needs: build  # Ensure the 'deploy' job runs only after the build job completes
 
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4  # Updated to v4
         with:
           name: weather-tool
           path: ./artifact
