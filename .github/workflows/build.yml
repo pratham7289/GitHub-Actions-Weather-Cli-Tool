@@ -7,21 +7,22 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted  # Make sure it runs on your self-hosted runner
+    runs-on: self-hosted  # Ensure it runs on your self-hosted runner
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"  # Use Python 3.9, ensure it's available in your environment
+      - name: Set Python 3.9 from system
+        run: |
+          echo "Setting up Python 3.9 from the system..."
+          export PATH="/usr/local/bin:$PATH"  # Adjust this if necessary
+          python3.9 --version  # Verify python version
+          pip3.9 install --upgrade pip  # Ensure pip is upgraded
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt  # Assuming you have a requirements.txt for your project
+          pip3.9 install -r requirements.txt  # Assuming you have a requirements.txt for your project
 
       - name: Build the project
         run: |
