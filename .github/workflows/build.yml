@@ -7,22 +7,19 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted  # Ensure it runs on your self-hosted runner
+    runs-on: self-hosted  # Use the self-hosted runner for the build
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set Python 3.9 from system
+      - name: Use system-installed Python 3.9
         run: |
-          echo "Setting up Python 3.9 from the system..."
-          export PATH="/usr/local/bin:$PATH"  # Adjust this if necessary
-          python3.9 --version  # Verify python version
+          echo "Using system-installed Python 3.9..."
+          # Ensure that Python 3.9 is being used
+          python3.9 --version  # Check Python version
           pip3.9 install --upgrade pip  # Ensure pip is upgraded
-
-      - name: Install dependencies
-        run: |
-          pip3.9 install -r requirements.txt  # Assuming you have a requirements.txt for your project
+          pip3.9 install -r requirements.txt  # Install dependencies
 
       - name: Build the project
         run: |
@@ -35,7 +32,7 @@ jobs:
           path: weather.py
 
   deploy:
-    runs-on: self-hosted
+    runs-on: self-hosted  # Ensure deployment happens on self-hosted runner
     needs: build  # Ensure the 'deploy' job runs only after the build job completes
 
     steps:
