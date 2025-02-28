@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: rhel-9.5  # Use a RHEL-based VM for the build
+    runs-on: self-hosted  # Use a RHEL-based VM for the build
 
     steps:
       - name: Checkout code
