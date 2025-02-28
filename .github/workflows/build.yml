@@ -1,9 +1,9 @@
-name: Build Weather CLI Tool
+name: Build and Deploy Weather CLI Tool
 
 on:
   push:
     branches:
-      - main  # Trigger on push to main branch
+      - main  # Trigger the workflow on pushes to the 'main' branch
 
 jobs:
   build:
@@ -26,22 +26,11 @@ jobs:
         run: |
           pyinstaller --onefile weather.py  # Convert script into an executable
 
-      - name: Tag the build with version (based on git tag or commit)
-        id: tag_build
-        run: |
-          # Extract the tag or commit hash (if tag exists)
-          if [[ -n "${GITHUB_REF##refs/tags/*}" ]]; then
-            TAG_NAME="build-$(date +%Y%m%d%H%M%S)"  # If no tag, use timestamp
-          else
-            TAG_NAME="${GITHUB_REF##refs/tags/}"  # Extract tag from ref
-          fi
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV  # Set tag name as environment variable
-
       - name: Upload binary as artifact
         uses: actions/upload-artifact@v4
         with:
           name: weather-tool
-          path: dist/weather  # Upload actual binary
+          path: dist/weather  # Upload the actual binary
 
   deploy:
     runs-on: self-hosted  # Ensure deployment happens on self-hosted runner
@@ -60,10 +49,9 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
           DESTINATION_FOLDER: /home/Result  # Path on the remote server where the file will be deployed
-          BUILD_TAG: ${{ env.TAG_NAME }}  # Using the tag set in the build job
         run: |
           echo "Deploying binary to remote server..."
-          
+
           # Print the SERVER_IP to check if it's being passed correctly
           echo "Server IP: $SERVER_IP"
 
@@ -71,23 +59,28 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa  # Set permissions for the private key file
-        
+
           # Add the server to known hosts to prevent SSH warnings
           ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
-          
-          # Verify the artifact exists
-          ls -lah ./artifact
 
-          # Define versioned build filename based on the tag
-          BUILD_NAME="weather_${BUILD_TAG}.tar.gz"  # Format tag for filename
+          # Check existing build files and get the latest build number
+          BUILD_NUMBER=$(ssh -i ~/.ssh/id_rsa $SERVER_USER@$SERVER_IP "ls $DESTINATION_FOLDER | grep -o 'weather-[0-9]*' | sort -V | tail -n 1 | sed 's/weather-//'")
+          if [ -z "$BUILD_NUMBER" ]; then
+            BUILD_NUMBER=0  # If no builds are present, start with 0
+          else
+            BUILD_NUMBER=$((BUILD_NUMBER + 1))  # Increment the build number
+          fi
+          echo "Next build number: $BUILD_NUMBER"
 
-          # Debug: Check the known_hosts file content
-          echo "Updated known_hosts content:"
-          cat ~/.ssh/known_hosts
-          
-          # Use SCP to copy the built binary to the remote server with the tag-based name
-          scp -i ~/.ssh/id_rsa ./artifact/weather $SERVER_USER@$SERVER_IP:$DESTINATION_FOLDER/$BUILD_NAME
+          # Create the new build filename (weather-<build_number>)
+          BUILD_FILE="weather-$BUILD_NUMBER"
 
-          # Optional: Log into the server and set correct permissions
-          ssh -i ~/.ssh/id_rsa $SERVER_USER@$SERVER_IP "chmod +x $DESTINATION_FOLDER/$BUILD_NAME"
+          # Transfer the new build with the incremented tag (no tar)
+          scp -i ~/.ssh/id_rsa ./artifact/weather $SERVER_USER@$SERVER_IP:$DESTINATION_FOLDER/$BUILD_FILE
+
+          # Optional: Set file permissions or make it executable
+          ssh -i ~/.ssh/id_rsa $SERVER_USER@$SERVER_IP "chmod +x $DESTINATION_FOLDER/$BUILD_FILE"
+
+          # Log the deployment
+          echo "Deployed $BUILD_FILE to $SERVER_IP:$DESTINATION_FOLDER"
 
