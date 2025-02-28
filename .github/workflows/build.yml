@@ -31,7 +31,7 @@ jobs:
         with:
           name: weather-tool
           path: dist/weather  # Upload the actual binary
-
+  #Now the deployment starts
   deploy:
     runs-on: self-hosted  # Ensure deployment happens on self-hosted runner
     needs: build  # Ensure the 'deploy' job runs only after the build job completes
