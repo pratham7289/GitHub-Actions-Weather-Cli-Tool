@@ -1,0 +1,36 @@
+name: Build Weather CLI Tool
+
+on:
+  push:
+    branches:
+      - main  # Use the 'main' branch instead of 'dev'
+
+jobs:
+  build:
+    runs-on: rhel-9.5  # Change this to use a RHEL-based VM
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          sudo dnf install -y python3-pip  # Use dnf to install pip on RHEL
+          python3 -m pip install --upgrade pip
+          pip install requests
+
+      - name: Build the project
+        run: |
+          make build
+
+      - name: Upload binary as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: weather-tool
+          path: weather.py
+
