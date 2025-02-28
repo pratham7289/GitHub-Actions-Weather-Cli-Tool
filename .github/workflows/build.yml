@@ -3,11 +3,11 @@ name: Build Weather CLI Tool
 on:
   push:
     branches:
-      - main  # Use the 'main' branch instead of 'dev'
+      - main  # Trigger the workflow on pushes to the 'main' branch
 
 jobs:
   build:
-    runs-on: rhel-9.5  # Change this to use a RHEL-based VM
+    runs-on: rhel-9.5  # Use a RHEL-based VM for the build
 
     steps:
       - name: Checkout code
@@ -33,4 +33,35 @@ jobs:
         with:
           name: weather-tool
           path: weather.py
+
+  deploy:
+    runs-on: self-hosted
+    needs: build  # Ensure the 'deploy' job runs only after the build job completes
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: weather-tool
+          path: ./artifact
+
+      - name: Deploy to remote server
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          DESTINATION_FOLDER: /home/Result  # Path on the remote server where the file will be deployed
+        run: |
+          echo "Deploying binary to remote server..."
+          
+          # Create the SSH directory and add the private key
+          mkdir -p ~/.ssh
+          echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa  # Set permissions for the private key file
+          
+          # Add the server to known hosts to prevent SSH warnings
+          ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+          
+          # Use SCP to copy the built binary to the remote server
+          scp ./artifact/weather.py $SERVER_USER@$SERVER_IP:$DESTINATION_FOLDER
 
