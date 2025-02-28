@@ -7,32 +7,36 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted  # Use the self-hosted runner for the build
+    runs-on: self-hosted  # Ensure it runs on your self-hosted runner
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Use system-installed Python 3.9
+      - name: Set Python 3.9 from system
         run: |
-          echo "Using system-installed Python 3.9..."
-          # Ensure that Python 3.9 is being used
-          python3.9 --version  # Check Python version
+          echo "Setting up Python 3.9 from the system..."
+          export PATH="/usr/local/bin:$PATH"  # Adjust this if necessary
+          python3.9 --version  # Verify python version
           pip3.9 install --upgrade pip  # Ensure pip is upgraded
-          pip3.9 install requests  # Install dependencies directly
+
+      - name: Install dependencies
+        run: |
+          pip3.9 install -r requirements.txt  # Ensure dependencies are installed
+          pip3.9 install pyinstaller  # Install PyInstaller
 
       - name: Build the project
         run: |
-          make build  # Ensure your makefile is correct
+          pyinstaller --onefile weather.py  # Convert script into an executable
 
       - name: Upload binary as artifact
         uses: actions/upload-artifact@v4
         with:
           name: weather-tool
-          path: weather.py
+          path: dist/weather  # Upload actual binary
 
   deploy:
-    runs-on: self-hosted  # Ensure deployment happens on self-hosted runner
+    runs-on: self-hosted
     needs: build  # Ensure the 'deploy' job runs only after the build job completes
 
     steps:
@@ -51,25 +55,17 @@ jobs:
         run: |
           echo "Deploying binary to remote server..."
           
-          # Print the SERVER_IP to check if it's being passed correctly
-          echo "Server IP: $SERVER_IP"
-
           # Create the SSH directory and add the private key
           mkdir -p ~/.ssh
           echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa  # Set permissions for the private key file
-        
-          # Debug: Check the known_hosts file content
-          echo "Checking known_hosts content:"
-          cat ~/.ssh/known_hosts
-
+          
           # Add the server to known hosts to prevent SSH warnings
           ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
           
-          # Verify the known_hosts file after ssh-keyscan
-          echo "Updated known_hosts content:"
-          cat ~/.ssh/known_hosts
-
+          # Verify the artifact exists
+          ls -lah ./artifact
+          
           # Use SCP to copy the built binary to the remote server
-          scp ./artifact/weather.py $SERVER_USER@$SERVER_IP:$DESTINATION_FOLDER
+          scp ./artifact/weather $SERVER_USER@$SERVER_IP:$DESTINATION_FOLDER
 
