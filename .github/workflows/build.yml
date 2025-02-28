@@ -50,15 +50,24 @@ jobs:
           DESTINATION_FOLDER: /home/Result  # Path on the remote server where the file will be deployed
         run: |
           echo "Deploying binary to remote server..."
-          
+         # Print the SERVER_IP to check if it's being passed correctly
+          echo "Server IP: $SERVER_IP"          
           # Create the SSH directory and add the private key
           mkdir -p ~/.ssh
           echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa  # Set permissions for the private key file
-          
+        
+         # Debug: Check the known_hosts file content
+          echo "Checking known_hosts content:"
+          cat ~/.ssh/known_hosts
+
           # Add the server to known hosts to prevent SSH warnings
           ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
           
+          # Verify the known_hosts file after ssh-keyscan
+          echo "Updated known_hosts content:"
+          cat ~/.ssh/known_hosts
+
           # Use SCP to copy the built binary to the remote server
           scp ./artifact/weather.py $SERVER_USER@$SERVER_IP:$DESTINATION_FOLDER
 
