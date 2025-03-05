@@ -38,12 +38,11 @@ jobs:
             mv dist/weather dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}
           fi
 
-      - name: Upload binary as artifact (for dev builds)
-        if: github.ref == 'refs/heads/dev'
+      - name: Upload binary as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: weather-tool-dev
-          path: dist/weather-dev-${{ env.BUILD_NUMBER }}
+          name: weather-tool
+          path: dist/
 
   store_dev_build:
     runs-on: ubuntu-latest
@@ -53,6 +52,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: weather-tool
+          path: dist/
 
       - name: Create folder for dev build
         run: |
@@ -81,7 +86,7 @@ jobs:
       - name: Download dev build artifact
         uses: actions/download-artifact@v4
         with:
-          name: weather-tool-dev
+          name: weather-tool
           path: ./artifact
 
       - name: Create GitHub Release
@@ -93,4 +98,3 @@ jobs:
           gh release create "$VERSION" ./artifact/weather-dev-${{ env.BUILD_NUMBER }} \
             --title "Build $VERSION" \
             --notes "Automated build and release for Weather CLI Tool."
-
