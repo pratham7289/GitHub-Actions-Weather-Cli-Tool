@@ -7,7 +7,7 @@ on:
       - main   # Build when code is pushed/merged into main
 
 env:
-  BUILD_NUMBER: ${{ github.run_number }}  # Unique build number
+  BUILD_NUMBER: ${{ github.run_number }}  # Gave the  Unique build number
 
 jobs:
   build:
