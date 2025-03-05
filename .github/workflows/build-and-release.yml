@@ -3,12 +3,13 @@ name: Build and Release Weather CLI Tool
 on:
   push:
     branches:
-      - feature  # Trigger when code is pushed to feature
-      - dev      # Trigger when code is pushed/merged into dev
-      - main     # Trigger when code is pushed/merged into main
+      - feature   # Trigger on push to the feature branch
+      - dev       # Trigger on push to the dev branch
+      - main      # Trigger on push to the main branch
 
 env:
-  BUILD_NUMBER: ${{ github.run_number }}  # Unique build number
+  BUILD_NUMBER: ${{ github.run_number }}  # Unique build number for this run
+  BUILD_DIR: "dev-merger-build"           # Directory where dev builds will be stored
 
 jobs:
   build:
@@ -27,61 +28,69 @@ jobs:
       - name: Build the project
         run: |
           pyinstaller --onefile weather.py
-          ls -l dist  # List files in the dist directory for debugging
-          mv dist/weather dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}  # Rename with branch & build number
+          ls -l dist  # List files in dist for debugging
+          # Rename the output based on branch.
+          if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            mv dist/weather dist/weather-dev-${{ env.BUILD_NUMBER }}
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            mv dist/weather dist/weather-main-${{ env.BUILD_NUMBER }}
+          else
+            mv dist/weather dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}
+          fi
 
       - name: Upload binary as artifact (for dev builds)
-        if: github.ref == 'refs/heads/dev'  # Store dev build inside GitHub repo
+        if: github.ref == 'refs/heads/dev'
         uses: actions/upload-artifact@v4
         with:
-          name: weather-tool-dev-${{ env.BUILD_NUMBER }}
-          path: dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}
+          name: weather-tool-dev
+          path: dist/weather-dev-${{ env.BUILD_NUMBER }}
 
-  commit_build:
+  store_dev_build:
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/dev'  # Only run after the build for dev is done
+    if: github.ref == 'refs/heads/dev'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Commit the build to repository (dev-merger-build folder)
+      - name: Create folder for dev build
         run: |
           BUILD_NAME="weather-dev-${{ env.BUILD_NUMBER }}"
-          BUILD_DIR="dev-merger-build/$BUILD_NAME"  # Store build in 'dev-merger-build' folder
           mkdir -p $BUILD_DIR
-          if [ -f dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }} ]; then
-            cp dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }} $BUILD_DIR
-            git add $BUILD_DIR
-            git commit -m "Add build $BUILD_NAME"
-            git push origin dev
-          else
-            echo "Build file not found!"
-            exit 1
-          fi
+          # Copy the dev build file into the folder
+          cp dist/weather-dev-${{ env.BUILD_NUMBER }} $BUILD_DIR/$BUILD_NAME
+          
+      - name: Commit and push dev build to GitHub repo
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add $BUILD_DIR/
+          git commit -m "Add build $BUILD_NAME"
+          git push origin dev
 
   release:
     runs-on: ubuntu-latest
-    needs: commit_build
-    if: github.ref == 'refs/heads/main'  # Only run when dev is merged into main
+    needs: store_dev_build
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download build artifact
+      - name: Download dev build artifact
         uses: actions/download-artifact@v4
         with:
-          name: weather-tool-dev-${{ env.BUILD_NUMBER }}
+          name: weather-tool-dev
           path: ./artifact
 
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="v${{ env.BUILD_NUMBER }}"  # Use build number for release version
-          gh release create "$VERSION" ./artifact/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }} \
+          VERSION="v${{ env.BUILD_NUMBER }}"  # Use build number for the release tag
+          # Use the dev build file downloaded from artifact (note: its name is weather-dev-<BUILD_NUMBER>)
+          gh release create "$VERSION" ./artifact/weather-dev-${{ env.BUILD_NUMBER }} \
             --title "Build $VERSION" \
             --notes "Automated build and release for Weather CLI Tool."
 
