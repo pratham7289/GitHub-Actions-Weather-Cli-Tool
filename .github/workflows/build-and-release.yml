@@ -3,11 +3,12 @@ name: Build and Release Weather CLI Tool
 on:
   push:
     branches:
-      - dev    # Build when code is pushed/merged into dev
-      - main   # Build when code is pushed/merged into main
+      - feature  # Trigger when code is pushed to feature
+      - dev      # Trigger when code is pushed/merged into dev
+      - main     # Trigger when code is pushed/merged into main
 
 env:
-  BUILD_NUMBER: ${{ github.run_number }}  # Gave the  Unique build number
+  BUILD_NUMBER: ${{ github.run_number }}  # Unique build number
 
 jobs:
   build:
@@ -26,9 +27,10 @@ jobs:
       - name: Build the project
         run: |
           pyinstaller --onefile weather.py
+          ls -l dist  # List files in the dist directory for debugging
           mv dist/weather dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}  # Rename with branch & build number
 
-      - name: Upload binary to the repository directory (for dev builds)
+      - name: Upload binary as artifact (for dev builds)
         if: github.ref == 'refs/heads/dev'  # Store dev build inside GitHub repo
         uses: actions/upload-artifact@v4
         with:
@@ -38,37 +40,37 @@ jobs:
   commit_build:
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/dev'  # Only for dev builds
+    if: github.ref == 'refs/heads/dev'  # Only run after the build for dev is done
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set up Git
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
 
       - name: Commit the build to repository (dev-merger-build folder)
         run: |
           BUILD_NAME="weather-dev-${{ env.BUILD_NUMBER }}"
           BUILD_DIR="dev-merger-build/$BUILD_NAME"  # Store build in 'dev-merger-build' folder
           mkdir -p $BUILD_DIR
-          cp dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }} $BUILD_DIR
-          git add $BUILD_DIR
-          git commit -m "Add build $BUILD_NAME"
-          git push origin dev
+          if [ -f dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }} ]; then
+            cp dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }} $BUILD_DIR
+            git add $BUILD_DIR
+            git commit -m "Add build $BUILD_NAME"
+            git push origin dev
+          else
+            echo "Build file not found!"
+            exit 1
+          fi
 
   release:
     runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'  # Only run if dev is merged into main
+    needs: commit_build
+    if: github.ref == 'refs/heads/main'  # Only run when dev is merged into main
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download build artifact from dev
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: weather-tool-dev-${{ env.BUILD_NUMBER }}
