@@ -3,7 +3,11 @@ name: Build and Release Weather CLI Tool
 on:
   push:
     branches:
-      - main
+      - dev    # Build when code is pushed/merged into dev
+      - main   # Build when code is pushed/merged into main
+
+env:
+  BUILD_NUMBER: ${{ github.run_number }}  # Unique build number
 
 jobs:
   build:
@@ -22,33 +26,43 @@ jobs:
       - name: Build the project
         run: |
           pyinstaller --onefile weather.py
+          mv dist/weather dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}  # Rename with branch & build number
 
-      - name: Upload binary as artifact
+      - name: Upload binary as artifact (for dev builds)
+        if: github.ref == 'refs/heads/dev'  # Store dev build inside GitHub repo
         uses: actions/upload-artifact@v4
         with:
-          name: weather-tool
-          path: dist/weather
+          name: weather-tool-dev
+          path: dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}
+
+      - name: Upload binary as artifact (for main builds)
+        if: github.ref == 'refs/heads/main'  # Store main build inside GitHub repo (before release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-tool-main
+          path: dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}
 
   release:
-    runs-on: ubuntu-latest  # Uses  GitHub's runner for release
+    runs-on: ubuntu-latest
     needs: build
+    if: github.ref == 'refs/heads/main'  # Only run if dev is merged into main
 
     steps:
-      - name: Checkout code  # Ensures the release job runs inside a valid Git repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download build artifact
+      - name: Download build artifact (Main Build)
         uses: actions/download-artifact@v4
         with:
-          name: weather-tool
+          name: weather-tool-main  # Corrected: We now download the main build
           path: ./artifact
 
-      - name: Create Release
+      - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(date +%Y.%m.%d-%H%M)  # Format: YYYY.MM.DD-HHMM
-          gh release create "v$VERSION" ./artifact/weather \
-            --title "Build v$VERSION" \
+          VERSION="v${{ env.BUILD_NUMBER }}"  # Use build number for release version
+          gh release create "$VERSION" ./artifact/weather-main-${{ env.BUILD_NUMBER }} \
+            --title "Build $VERSION" \
             --notes "Automated build and release for Weather CLI Tool."
 
