@@ -3,8 +3,8 @@ name: Build and Release Weather CLI Tool
 on:
   push:
     branches:
-      - dev    # Build when code is pushed/merged into dev
-      - main   # Build when code is pushed/merged into main
+      - dev    # Trigger build on dev branch
+      - main   # Trigger build on main branch
 
 env:
   BUILD_NUMBER: ${{ github.run_number }}  # Unique build number
@@ -32,14 +32,7 @@ jobs:
         if: github.ref == 'refs/heads/dev'  # Store dev build inside GitHub repo
         uses: actions/upload-artifact@v4
         with:
-          name: weather-tool-dev
-          path: dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}
-
-      - name: Upload binary as artifact (for main builds)
-        if: github.ref == 'refs/heads/main'  # Store main build inside GitHub repo (before release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: weather-tool-main
+          name: weather-tool-dev-${{ env.BUILD_NUMBER }}  # Naming the dev build with a unique build number
           path: dist/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }}
 
   release:
@@ -51,10 +44,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download build artifact (Main Build)
+      - name: Download build artifact (for dev builds)
         uses: actions/download-artifact@v4
         with:
-          name: weather-tool-main  # Corrected: We now download the main build
+          name: weather-tool-dev-${{ env.BUILD_NUMBER }}  # Ensure the correct artifact is downloaded
           path: ./artifact
 
       - name: Create GitHub Release
@@ -62,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="v${{ env.BUILD_NUMBER }}"  # Use build number for release version
-          gh release create "$VERSION" ./artifact/weather-main-${{ env.BUILD_NUMBER }} \
+          gh release create "$VERSION" ./artifact/weather-${{ github.ref_name }}-${{ env.BUILD_NUMBER }} \
             --title "Build $VERSION" \
             --notes "Automated build and release for Weather CLI Tool."
 
