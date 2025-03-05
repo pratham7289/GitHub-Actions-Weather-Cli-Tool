@@ -30,7 +30,7 @@ jobs:
           path: dist/weather
 
   release:
-    runs-on: ubuntu-latest  # Uses GitHub's runner for release
+    runs-on: ubuntu-latest  # Uses the GitHub's runner for release
     needs: build
 
     steps:
