@@ -7,7 +7,7 @@ on:
       - main   # Trigger build on main branch
 
 env:
-  BUILD_NUMBER: ${{ github.run_number }}  # Unique build number
+  BUILD_NUMBER: ${{ github.run_number }}  # Gave the  Unique build number
 
 jobs:
   build:
